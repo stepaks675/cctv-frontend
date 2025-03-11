@@ -32,11 +32,11 @@ function App() {
   const roleColors = {
     'PROVED UR LUV': 'text-purple-600 font-bold',
     'Prover': 'text-blue-600 font-bold',
-    'PROOF OF ART': 'text-pink-600 font-bold',
-    'PROOF OF VIDEO': 'text-red-600 font-bold',
-    'PROOF OF DEV': 'text-green-600 font-bold',
-    'PROOF OF MUSIC': 'text-yellow-600 font-bold',
-    'PROOF OF WRITING': 'text-indigo-600 font-bold',
+    'PROOF OF ART': 'text-pink-600',
+    'PROOF OF VIDEO': 'text-red-600 ',
+    'PROOF OF DEV': 'text-green-600 ',
+    'PROOF OF MUSIC': 'text-yellow-600',
+    'PROOF OF WRITING': 'text-indigo-600 ',
     'Super Prover': 'text-pink-800 font-bold',
     'Proofer': 'text-purple-600 font-bold'
   };
@@ -59,13 +59,11 @@ function App() {
           const latestSnapshot = response.data[0];
           fetchSnapshotDetails(latestSnapshot.id);
           
-          // Find daily comparison snapshot (5 snapshots earlier = ~20 hours)
           const dailyComparisonIndex = Math.min(6, response.data.length - 1);
           if (dailyComparisonIndex > 0) {
             const dailySnapshotId = response.data[dailyComparisonIndex].id;
             fetchComparisonSnapshot(dailySnapshotId, 'daily');
           } else if (response.data.length > 1) {
-            // If less than 5 snapshots, use the oldest one
             const oldestSnapshotId = response.data[response.data.length - 1].id;
             fetchComparisonSnapshot(oldestSnapshotId, 'daily');
           }
@@ -280,7 +278,7 @@ function App() {
                 <p className="text-pink-800 font-medium">Total users: {users.length}</p>
               </div>
               <div className="bg-pink-100 p-4 rounded-lg">
-                <p className="text-pink-800 font-medium">Total messages: {users.reduce((sum, user) => sum + user.total_messages, 0)}</p>
+                <p className="text-pink-800 font-medium">Total messages (since 11.03.2025): {users.reduce((sum, user) => sum + user.total_messages, 0)}</p>
               </div>
             </div>
           </div>
