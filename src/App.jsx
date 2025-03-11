@@ -11,11 +11,11 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [sortOrder, setSortOrder] = useState('desc'); // 'asc' or 'desc'
-  const [selectedRole, setSelectedRole] = useState('all'); // Filter by role
-  const [expandedUsers, setExpandedUsers] = useState({}); // Track expanded channel lists
+  const [sortOrder, setSortOrder] = useState('desc'); 
+  const [selectedRole, setSelectedRole] = useState('all'); 
+  const [expandedUsers, setExpandedUsers] = useState({});
+  const [messageChangeFilter, setMessageChangeFilter] = useState('none');
 
-  // Important roles to display and highlight (in order of importance)
   const importantRoles = [
     'Super Prover',
     'Prover', 
@@ -27,7 +27,7 @@ function App() {
     'PROOF OF WRITING'
   ];
 
-  // Role colors mapping
+
   const roleColors = {
     'PROVED UR LUV': 'text-purple-600 font-bold',
     'Prover': 'text-blue-600 font-bold',
@@ -39,11 +39,11 @@ function App() {
     'Super Prover': 'text-pink-800 font-bold'
   };
 
-  // API configuration
-  const API_URL = 'https://succinctrolecctv-production.up.railway.app/api';
-  const API_KEY = 'amogus'; // Replace with your API key
 
-  // Fetch all snapshots on load
+  const API_URL = 'https://succinctrolecctv-production.up.railway.app/api';
+  const API_KEY = 'amogus'; 
+
+
   useEffect(() => {
     const fetchSnapshots = async () => {
       try {
@@ -53,13 +53,12 @@ function App() {
         });
         setSnapshots(response.data);
         
-        // Automatically select the latest snapshot
         if (response.data.length > 0) {
           const latestSnapshot = response.data[0];
           fetchSnapshotDetails(latestSnapshot.id);
           
           // Find daily comparison snapshot (5 snapshots earlier = ~20 hours)
-          const dailyComparisonIndex = Math.min(5, response.data.length - 1);
+          const dailyComparisonIndex = Math.min(6, response.data.length - 1);
           if (dailyComparisonIndex > 0) {
             const dailySnapshotId = response.data[dailyComparisonIndex].id;
             fetchComparisonSnapshot(dailySnapshotId, 'daily');
@@ -69,13 +68,13 @@ function App() {
             fetchComparisonSnapshot(oldestSnapshotId, 'daily');
           }
           
-          // Find weekly comparison snapshot (42 snapshots earlier = ~7 days)
+
           const weeklyComparisonIndex = Math.min(42, response.data.length - 1);
           if (weeklyComparisonIndex > 0) {
             const weeklySnapshotId = response.data[weeklyComparisonIndex].id;
             fetchComparisonSnapshot(weeklySnapshotId, 'weekly');
           } else if (response.data.length > 1) {
-            // If less than 42 snapshots, use the oldest one
+
             const oldestSnapshotId = response.data[response.data.length - 1].id;
             fetchComparisonSnapshot(oldestSnapshotId, 'weekly');
           }
@@ -91,7 +90,7 @@ function App() {
     fetchSnapshots();
   }, []);
 
-  // Fetch snapshot details
+
   const fetchSnapshotDetails = async (snapshotId) => {
     try {
       setLoading(true);
@@ -100,7 +99,7 @@ function App() {
       });
       setSelectedSnapshot(response.data.snapshot);
       
-      // Filter users to only include those with important roles
+
       const filteredUsers = response.data.users.filter(user => {
         const userRoles = user.roles.split(', ');
         return userRoles.some(role => importantRoles.includes(role));
@@ -109,7 +108,7 @@ function App() {
       setUsers(filteredUsers);
       setLoading(false);
       
-      // Reset expanded users when changing snapshots
+
       setExpandedUsers({});
     } catch (err) {
       setError('Error loading snapshot data: ' + err.message);
@@ -117,7 +116,7 @@ function App() {
     }
   };
 
-  // Fetch comparison snapshot for daily/weekly dynamics
+
   const fetchComparisonSnapshot = async (snapshotId, type) => {
     try {
       const response = await axios.get(`${API_URL}/snapshots/${snapshotId}`, {
@@ -131,11 +130,9 @@ function App() {
       }
     } catch (err) {
       console.error(`Error loading ${type} comparison snapshot:`, err);
-      // Not setting error state to avoid disrupting the main UI
     }
   };
 
-  // Calculate message change for a user
   const calculateMessageChange = (user, comparisonType) => {
     const comparisonSnapshot = comparisonType === 'daily' 
       ? dailyComparisonSnapshot 
@@ -167,11 +164,10 @@ function App() {
     };
   };
 
-  // Sort user roles according to the defined order
+
   const sortUserRoles = (rolesString) => {
     const userRoles = rolesString.split(', ');
     
-    // Filter to only include important roles and sort them according to importantRoles order
     const sortedRoles = userRoles
       .filter(role => importantRoles.includes(role))
       .sort((a, b) => {
@@ -181,7 +177,6 @@ function App() {
     return sortedRoles;
   };
 
-  // Toggle channel list expansion for a user
   const toggleChannelExpansion = (userId) => {
     setExpandedUsers(prev => ({
       ...prev,
@@ -189,28 +184,45 @@ function App() {
     }));
   };
 
-  // Filter users by search term and selected role
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.username.toLowerCase().includes(searchTerm.toLowerCase());
     
-    if (selectedRole === 'all') {
-      return matchesSearch;
-    } else {
-      const userRoles = user.roles.split(', ');
-      return matchesSearch && userRoles.includes(selectedRole);
+    const matchesRole = selectedRole === 'all' || 
+      user.roles.split(', ').includes(selectedRole);
+    
+    if (messageChangeFilter !== 'none') {
+      const changeData = messageChangeFilter === 'daily' 
+        ? calculateMessageChange(user, 'daily')
+        : calculateMessageChange(user, 'weekly');
+      
+    
     }
+    
+    return matchesSearch && matchesRole
   });
 
-  // Sort users by message count
   const sortedUsers = [...filteredUsers].sort((a, b) => {
-    if (sortOrder === 'desc') {
-      return b.total_messages - a.total_messages;
+    if (messageChangeFilter === 'none') {
+      // Сортировка по общему количеству сообщений
+      if (sortOrder === 'desc') {
+        return b.total_messages - a.total_messages;
+      } else {
+        return a.total_messages - b.total_messages;
+      }
     } else {
-      return a.total_messages - b.total_messages;
+      // Сортировка по изменению количества сообщений
+      const changeA = calculateMessageChange(a, messageChangeFilter)?.change || 0;
+      const changeB = calculateMessageChange(b, messageChangeFilter)?.change || 0;
+      
+      if (sortOrder === 'desc') {
+        return changeB - changeA;
+      } else {
+        return changeA - changeB;
+      }
     }
   });
 
-  // Format role with color
+
   const formatRole = (role) => {
     if (roleColors[role]) {
       return <span key={role} className={roleColors[role]}>{role}</span>;
@@ -300,15 +312,27 @@ function App() {
             </select>
           </div>
           
-          <button 
-            onClick={toggleSortOrder}
-            className="bg-pink-500 hover:bg-pink-600 text-white font-medium py-2 px-4 rounded-md flex items-center justify-center"
-          >
-            Sort by Messages: {sortOrder === 'desc' ? 'Highest First' : 'Lowest First'}
-            <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ml-2 ${sortOrder === 'desc' ? 'transform rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              className="border border-pink-300 rounded-md p-3 w-full focus:outline-none focus:ring-2 focus:ring-pink-500"
+              value={messageChangeFilter}
+              onChange={(e) => setMessageChangeFilter(e.target.value)}
+            >
+              <option value="none">Total Messages</option>
+              <option value="daily">Daily Change</option>
+              <option value="weekly">Weekly Change</option>
+            </select>
+            
+            <button 
+              onClick={toggleSortOrder}
+              className="bg-pink-500 hover:bg-pink-600 text-white font-medium py-2 px-4 rounded-md flex items-center justify-center"
+            >
+              {sortOrder === 'desc' ? 'Highest First' : 'Lowest First'}
+              <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ml-2 ${sortOrder === 'desc' ? 'transform rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Users table */}
@@ -334,30 +358,38 @@ function App() {
                   const dailyMessageData = calculateMessageChange(user, 'daily');
                   const weeklyMessageData = calculateMessageChange(user, 'weekly');
                   
-                  // Sort roles according to the defined order
+                  // Определяем, нужно ли подсвечивать строку
+                  const dailyChange = dailyMessageData?.change || 0;
+                  const weeklyChange = weeklyMessageData?.change || 0;
+                  
+                  let rowClass = index % 2 === 0 ? "bg-white" : "bg-pink-50";
+                  
+                  // Подсветка для пользователей с нулевыми изменениями
+                  if (weeklyChange === 0) {
+                    rowClass = "bg-red-200"; // Красный для нулевых изменений за неделю
+                  } else if (dailyChange === 0) {
+                    rowClass = "bg-orange-200"; // Оранжевый для нулевых изменений за день
+                  }
+
                   const sortedRoles = sortUserRoles(user.roles);
                   
-                  // Format roles with proper styling
                   const formattedRoles = sortedRoles.map((role, idx) => {
                     const element = formatRole(role);
-                    // Add comma except for the last element
+
                     if (idx < sortedRoles.length - 1) {
                       return [element, <span key={`comma-${idx}`}>, </span>];
                     }
                     return element;
                   });
                   
-                  // Determine if this user's channel list is expanded
                   const isExpanded = expandedUsers[user.user_id] || false;
                   
-                  // Sort channels by message count (descending)
                   const sortedChannels = [...user.channels].sort((a, b) => b.message_count - a.message_count);
                   
-                  // Determine how many channels to show
                   const displayChannels = isExpanded ? sortedChannels : sortedChannels.slice(0, 5);
                   
                   return (
-                    <tr key={user.user_id} className={index % 2 === 0 ? "bg-white" : "bg-pink-50"}>
+                    <tr key={user.user_id} className={rowClass}>
                       <td className="py-3 px-4 border-b border-pink-100 font-medium">{user.username}</td>
                       <td className="py-3 px-4 border-b border-pink-100">{formattedRoles}</td>
                       <td className="py-3 px-4 border-b border-pink-100 text-center">{user.total_messages}</td>
@@ -365,7 +397,13 @@ function App() {
                       {/* Daily change column */}
                       <td className="py-3 px-4 border-b border-pink-100 text-center">
                         {dailyMessageData && dailyMessageData.change !== null ? (
-                          <span className={`font-medium ${dailyMessageData.change > 0 ? 'text-green-600' : dailyMessageData.change < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                          <span className={`font-medium ${
+                            dailyMessageData.change > 0 
+                              ? 'text-green-600' 
+                              : dailyMessageData.change < 0 
+                                ? 'text-red-600' 
+                                : 'text-orange-500 font-bold'
+                          }`}>
                             {dailyMessageData.change > 0 ? '+' : ''}{dailyMessageData.change}
                           </span>
                         ) : (
@@ -376,7 +414,13 @@ function App() {
                       {/* Weekly change column */}
                       <td className="py-3 px-4 border-b border-pink-100 text-center">
                         {weeklyMessageData && weeklyMessageData.change !== null ? (
-                          <span className={`font-medium ${weeklyMessageData.change > 0 ? 'text-green-600' : weeklyMessageData.change < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                          <span className={`font-medium ${
+                            weeklyMessageData.change > 0 
+                              ? 'text-green-600' 
+                              : weeklyMessageData.change < 0 
+                                ? 'text-red-600' 
+                                : 'text-red-500 font-bold'
+                          }`}>
                             {weeklyMessageData.change > 0 ? '+' : ''}{weeklyMessageData.change}
                           </span>
                         ) : (
