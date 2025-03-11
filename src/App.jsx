@@ -19,6 +19,7 @@ function App() {
   const importantRoles = [
     'Super Prover',
     'Prover', 
+    'Proofer',
     'PROVED UR LUV', 
     'PROOF OF ART', 
     'PROOF OF VIDEO', 
@@ -36,7 +37,8 @@ function App() {
     'PROOF OF DEV': 'text-green-600 font-bold',
     'PROOF OF MUSIC': 'text-yellow-600 font-bold',
     'PROOF OF WRITING': 'text-indigo-600 font-bold',
-    'Super Prover': 'text-pink-800 font-bold'
+    'Super Prover': 'text-pink-800 font-bold',
+    'Proofer': 'text-purple-600 font-bold'
   };
 
 
