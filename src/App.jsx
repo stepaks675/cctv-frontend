@@ -13,11 +13,14 @@ function App() {
   const [error, setError] = useState(null);
   const [sortOrder, setSortOrder] = useState('desc'); 
   const [selectedRole, setSelectedRole] = useState('all'); 
+  const [selectedChannels, setSelectedChannels] = useState([]);
+  const [showChannelSelector, setShowChannelSelector] = useState(false);
   const [expandedUsers, setExpandedUsers] = useState({});
   const [messageChangeFilter, setMessageChangeFilter] = useState('none');
 
   const importantRoles = [
     'Super Prover',
+    'Helper Prover',
     'Prover', 
     'Proofer',
     'PROVED UR LUV', 
@@ -38,7 +41,8 @@ function App() {
     'PROOF OF MUSIC': 'text-yellow-600',
     'PROOF OF WRITING': 'text-indigo-600 ',
     'Super Prover': 'text-pink-800 font-bold',
-    'Proofer': 'text-purple-600 font-bold'
+    'Proofer': 'text-purple-600 font-bold',
+    'Helper Prover': 'text-yellow-300 font-bold'
   };
 
 
@@ -108,7 +112,7 @@ function App() {
       setUsers(filteredUsers);
       setLoading(false);
       
-
+      setSelectedChannels([]);
       setExpandedUsers({});
     } catch (err) {
       setError('Error loading snapshot data: ' + err.message);
@@ -145,7 +149,6 @@ function App() {
     
     const change = user.total_messages - oldUserData.total_messages;
     
-    // Calculate channel changes
     const channelChanges = user.channels.map(channel => {
       const oldChannel = oldUserData.channels.find(c => c.channel_id === channel.channel_id);
       const oldCount = oldChannel ? oldChannel.message_count : 0;
@@ -184,33 +187,58 @@ function App() {
     }));
   };
 
+  // Toggle channel selection
+  const toggleChannelSelection = (channelName) => {
+    setSelectedChannels(prev => {
+      if (prev.includes(channelName)) {
+        return prev.filter(c => c !== channelName);
+      } else {
+        return [...prev, channelName];
+      }
+    });
+  };
+
+
+  const clearSelectedChannels = () => {
+    setSelectedChannels([]);
+  };
+
+  const selectAllChannels = (channels) => {
+    setSelectedChannels([...channels]);
+  };
+
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.username.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = selectedRole === 'all' || user.roles.split(', ').includes(selectedRole);
     
-    const matchesRole = selectedRole === 'all' || 
-      user.roles.split(', ').includes(selectedRole);
+    const matchesMultiChannel = selectedChannels.length === 0 || 
+      user.channels.some(channel => selectedChannels.includes(channel.channel_name));
+    
+    const hasActivityInSelectedChannels = selectedChannels.length === 0 || 
+      user.channels.some(channel => 
+        selectedChannels.includes(channel.channel_name) && channel.message_count > 0
+      );
     
     if (messageChangeFilter !== 'none') {
       const changeData = messageChangeFilter === 'daily' 
         ? calculateMessageChange(user, 'daily')
         : calculateMessageChange(user, 'weekly');
-      
-    
     }
     
-    return matchesSearch && matchesRole
+    return matchesSearch && matchesRole && 
+           (selectedChannels.length > 0 ? matchesMultiChannel && hasActivityInSelectedChannels : 1);
   });
 
   const sortedUsers = [...filteredUsers].sort((a, b) => {
     if (messageChangeFilter === 'none') {
-      // Сортировка по общему количеству сообщений
+
       if (sortOrder === 'desc') {
         return b.total_messages - a.total_messages;
       } else {
         return a.total_messages - b.total_messages;
       }
     } else {
-      // Сортировка по изменению количества сообщений
+
       const changeA = calculateMessageChange(a, messageChangeFilter)?.change || 0;
       const changeB = calculateMessageChange(b, messageChangeFilter)?.change || 0;
       
@@ -230,10 +258,17 @@ function App() {
     return <span key={role}>{role}</span>;
   };
 
-  // Toggle sort order
   const toggleSortOrder = () => {
     setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
   };
+
+  const uniqueChannels = Array.from(new Set(users.flatMap(user => user.channels.map(channel => channel.channel_name))))
+    .sort((a, b) => {
+      const priorityKeywords = ['proof-of', 'contributions', 'memes', 'submissions'];
+      const aHasPriority = priorityKeywords.some(keyword => a.toLowerCase().includes(keyword));
+      const bHasPriority = priorityKeywords.some(keyword => b.toLowerCase().includes(keyword));
+      return (aHasPriority === bHasPriority) ? 0 : (aHasPriority ? -1 : 1);
+    });
 
   return (
     <div className="min-h-screen bg-pink-50">
@@ -246,7 +281,6 @@ function App() {
           </div>
         )}
 
-        {/* Snapshot selection */}
         <div className="mb-8 bg-white p-6 rounded-lg shadow-md border border-pink-200">
           <h2 className="text-2xl font-semibold mb-4 text-pink-700">Snapshots</h2>
           {loading && snapshots.length === 0 ? (
@@ -266,7 +300,6 @@ function App() {
           )}
         </div>
 
-        {/* Selected snapshot info */}
         {selectedSnapshot && (
           <div className="mb-8 bg-white p-6 rounded-lg shadow-md border border-pink-200">
             <h2 className="text-2xl font-semibold mb-3 text-pink-700">Snapshot: {selectedSnapshot.name}</h2>
@@ -312,6 +345,70 @@ function App() {
             </select>
           </div>
           
+          <div>
+            <div className="flex">
+              <button 
+                onClick={() => setShowChannelSelector(!showChannelSelector)}
+                className="w-full bg-pink-500 hover:bg-pink-600 text-white font-medium py-3 px-4 rounded-md flex items-center"
+              >
+                Channels
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ml-1 transition-transform ${showChannelSelector ? 'transform rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
+            
+            {showChannelSelector && (
+              <div className="mt-2 p-4 bg-white border border-pink-300 rounded-md shadow-md">
+                <div className="flex justify-between mb-2">
+                  <h3 className="text-pink-700 font-medium">Select Channels</h3>
+                  <div className="space-x-2">
+                    <button 
+                      onClick={() => selectAllChannels(uniqueChannels)}
+                      className="text-pink-600 hover:text-pink-800 text-sm font-medium"
+                    >
+                      Select All
+                    </button>
+                    <button 
+                      onClick={clearSelectedChannels}
+                      className="text-pink-600 hover:text-pink-800 text-sm font-medium"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="max-h-60 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-1">
+                  {uniqueChannels.map(channel => (
+                    <div key={channel} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id={`channel-${channel}`}
+                        checked={selectedChannels.includes(channel)}
+                        onChange={() => toggleChannelSelection(channel)}
+                        className="mr-2 h-4 w-4 text-pink-600 focus:ring-pink-500 rounded"
+                      />
+                      <label htmlFor={`channel-${channel}`} className="text-sm">
+                        {channel}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="mt-3 text-sm">
+                  <p className="text-pink-600">
+                    {selectedChannels.length} channels selected
+                  </p>
+                  {selectedChannels.length > 0 && (
+                    <p className="text-gray-600 mt-1">
+                      Only showing users with activity in selected channels
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          
           <div className="grid grid-cols-2 gap-2">
             <select
               className="border border-pink-300 rounded-md p-3 w-full focus:outline-none focus:ring-2 focus:ring-pink-500"
@@ -333,9 +430,37 @@ function App() {
               </svg>
             </button>
           </div>
+          
+          {/* Channel filter indicator */}
+          {selectedChannels.length > 0 && (
+            <div className="md:col-span-3 flex flex-wrap gap-2 mt-2">
+              <span className="text-pink-700 font-medium">Filtered channels:</span>
+              {selectedChannels.map(channel => (
+                <span 
+                  key={channel} 
+                  className="bg-pink-200 text-pink-800 px-2 py-1 rounded-full text-sm flex items-center"
+                >
+                  {channel}
+                  <button 
+                    onClick={() => toggleChannelSelection(channel)} 
+                    className="ml-1 text-pink-600 hover:text-pink-800"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              ))}
+              <button 
+                onClick={clearSelectedChannels}
+                className="text-pink-600 hover:text-pink-800 text-sm underline"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Users table */}
         {loading && users.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-pink-600 text-lg">Loading user data...</p>
@@ -358,17 +483,15 @@ function App() {
                   const dailyMessageData = calculateMessageChange(user, 'daily');
                   const weeklyMessageData = calculateMessageChange(user, 'weekly');
                   
-                  // Определяем, нужно ли подсвечивать строку
                   const dailyChange = dailyMessageData?.change || 0;
                   const weeklyChange = weeklyMessageData?.change || 0;
                   
                   let rowClass = index % 2 === 0 ? "bg-white" : "bg-pink-50";
                   
-                  // Подсветка для пользователей с нулевыми изменениями
                   if (weeklyChange === 0) {
-                    rowClass = "bg-red-200"; // Красный для нулевых изменений за неделю
+                    rowClass = "bg-red-200"; 
                   } else if (dailyChange === 0) {
-                    rowClass = "bg-orange-200"; // Оранжевый для нулевых изменений за день
+                    rowClass = "bg-orange-200"; 
                   }
 
                   const sortedRoles = sortUserRoles(user.roles);
@@ -384,7 +507,14 @@ function App() {
                   
                   const isExpanded = expandedUsers[user.user_id] || false;
                   
-                  const sortedChannels = [...user.channels].sort((a, b) => b.message_count - a.message_count);
+                  let userChannels = [...user.channels];
+                  if (selectedChannels.length > 0) {
+                    userChannels = userChannels.filter(channel => 
+                      selectedChannels.includes(channel.channel_name)
+                    );
+                  }
+                  
+                  const sortedChannels = [...userChannels].sort((a, b) => b.message_count - a.message_count);
                   
                   const displayChannels = isExpanded ? sortedChannels : sortedChannels.slice(0, 5);
                   
@@ -394,7 +524,6 @@ function App() {
                       <td className="py-3 px-4 border-b border-pink-100">{formattedRoles}</td>
                       <td className="py-3 px-4 border-b border-pink-100 text-center">{user.total_messages}</td>
                       
-                      {/* Daily change column */}
                       <td className="py-3 px-4 border-b border-pink-100 text-center">
                         {dailyMessageData && dailyMessageData.change !== null ? (
                           <span className={`font-medium ${
@@ -411,7 +540,6 @@ function App() {
                         )}
                       </td>
                       
-                      {/* Weekly change column */}
                       <td className="py-3 px-4 border-b border-pink-100 text-center">
                         {weeklyMessageData && weeklyMessageData.change !== null ? (
                           <span className={`font-medium ${
@@ -447,14 +575,12 @@ function App() {
                                     <span className="font-medium">{channel.channel_name}:</span> 
                                     <span className="ml-1">{channel.message_count} messages</span>
                                     
-                                    {/* Daily change */}
                                     {dailyChannelChange !== null && dailyChannelChange !== 0 && (
                                       <span className={`ml-2 ${dailyChannelChange > 0 ? 'text-green-600' : 'text-red-600'} font-medium`}>
                                         ({dailyChannelChange > 0 ? '+' : ''}{dailyChannelChange})
                                       </span>
                                     )}
                                     
-                                    {/* Weekly change */}
                                     {weeklyChannelChange !== null && weeklyChannelChange !== 0 && (
                                       <span className={`ml-2 ${weeklyChannelChange > 0 ? 'text-blue-600' : 'text-purple-600'} font-medium`}>
                                         [W: {weeklyChannelChange > 0 ? '+' : ''}{weeklyChannelChange}]
@@ -465,12 +591,12 @@ function App() {
                               );
                             })}
                             
-                            {!isExpanded && user.channels.length > 5 && (
+                            {!isExpanded && displayChannels.length > 5 && (
                               <li className="text-pink-500 font-medium mt-1 hover:text-pink-700">
-                                Click to show all {user.channels.length} channels
+                                Click to show all {displayChannels.length} channels
                               </li>
                             )}
-                            {isExpanded && user.channels.length > 5 && (
+                            {isExpanded && displayChannels.length > 5 && (
                               <li className="text-pink-500 font-medium mt-1 hover:text-pink-700">
                                 Click to collapse
                               </li>
@@ -484,7 +610,7 @@ function App() {
                 {sortedUsers.length === 0 && (
                   <tr>
                     <td colSpan="6" className="py-8 text-center text-pink-600">
-                      No users found
+                      No users found matching the selected filters
                     </td>
                   </tr>
                 )}
