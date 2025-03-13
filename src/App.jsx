@@ -22,7 +22,6 @@ function App() {
   const [channelConfigs, setChannelConfigs] = useState([]);
   const [configName, setConfigName] = useState("");
   const [showConfigModal, setShowConfigModal] = useState(false);
-  console.log(breakdownSnapshots);
   const importantRoles = [
     "Super Prover",
     "Helper Prover",
@@ -169,7 +168,7 @@ function App() {
 
   const calculateDailyBreakdownChange = (user) => {
     let breakdown = [];
-    let channelBreakdown = Array.from({ length: 7 }, () => []);
+    let channelBreakdown = Array.from({ length: 8 }, () => []);
 
     breakdown.push(
       user.total_messages -
@@ -196,6 +195,8 @@ function App() {
       );
     });
 
+
+
     user.channels.forEach((channel) => {
       for (let i = 1; i < 7; i++) {
         channelBreakdown[i].push(
@@ -209,6 +210,10 @@ function App() {
               ?.message_count || 0)
         );
       }
+    });
+
+    user.channels.forEach((channel) => {
+      channelBreakdown[7]?.push(channel?.channel_id);
     });
 
     return {
@@ -753,7 +758,6 @@ function App() {
                   );
 
                   const breakdownData = calculateDailyBreakdownChange(user);
-
                   const dailyChange = dailyMessageData?.change || 0;
                   const weeklyChange = weeklyMessageData?.change || 0;
 
@@ -926,9 +930,13 @@ function App() {
                                       )}
                                     
                                     [{breakdownData.channelBreakdown.map((num, ind) => {
+                                      if (ind == 7) return null;
+
+                                      const realindex = breakdownData?.channelBreakdown[7]?.indexOf(channel.channel_id);
                                       return (
-                                        <span className={(num[index] > 0 ? "text-green-600" : "text-red-600") + " pr-1  "} key={ind}>
-                                          {num[index]}  
+
+                                        <span className={(num[realindex] > 0 ? "text-green-600" : "text-red-600") + " pr-1  "} key={ind}>
+                                          {num[realindex]}  
                                           {(ind != 6 ? ", " : "")}
                                           
                                         </span>
