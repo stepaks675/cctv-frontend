@@ -3,6 +3,7 @@ import axios from 'axios'
 import './index.css'
 
 function App() {
+  
   const [snapshots, setSnapshots] = useState([]);
   const [selectedSnapshot, setSelectedSnapshot] = useState(null);
   const [dailyComparisonSnapshot, setDailyComparisonSnapshot] = useState(null);
@@ -17,6 +18,9 @@ function App() {
   const [showChannelSelector, setShowChannelSelector] = useState(false);
   const [expandedUsers, setExpandedUsers] = useState({});
   const [messageChangeFilter, setMessageChangeFilter] = useState('none');
+  const [channelConfigs, setChannelConfigs] = useState([]);
+  const [configName, setConfigName] = useState('');
+  const [showConfigModal, setShowConfigModal] = useState(false);
 
   const importantRoles = [
     'Super Prover',
@@ -92,6 +96,10 @@ function App() {
     };
 
     fetchSnapshots();
+    const savedConfigs = localStorage.getItem('channelConfigs');
+    if (savedConfigs) {
+      setChannelConfigs(JSON.parse(savedConfigs));
+    }
   }, []);
 
 
@@ -269,6 +277,34 @@ function App() {
       const bHasPriority = priorityKeywords.some(keyword => b.toLowerCase().includes(keyword));
       return (aHasPriority === bHasPriority) ? 0 : (aHasPriority ? -1 : 1);
     });
+  const saveChannelConfig = () => {
+    if (!configName.trim() || selectedChannels.length === 0) return;
+    
+    const newConfig = {
+      id: Date.now(),
+      name: configName.trim(),
+      channels: [...selectedChannels]
+    };
+    
+    const updatedConfigs = [...channelConfigs, newConfig];
+    setChannelConfigs(updatedConfigs);
+    localStorage.setItem('channelConfigs', JSON.stringify(updatedConfigs));
+    
+    setConfigName('');
+    setShowConfigModal(false);
+  };
+  
+  const loadChannelConfig = (config) => {
+    setSelectedChannels(config.channels);
+    setShowChannelSelector(false);
+  };
+  
+  const deleteChannelConfig = (id, e) => {
+    e.stopPropagation();
+    const updatedConfigs = channelConfigs.filter(config => config.id !== id);
+    setChannelConfigs(updatedConfigs);
+    localStorage.setItem('channelConfigs', JSON.stringify(updatedConfigs));
+  };
 
   return (
     <div className="min-h-screen bg-pink-50">
@@ -317,7 +353,6 @@ function App() {
           </div>
         )}
 
-        {/* User search, role filter, and sort controls */}
         <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="relative">
             <input
@@ -378,6 +413,31 @@ function App() {
                   </div>
                 </div>
                 
+                {channelConfigs.length > 0 && (
+                  <div className="mb-3">
+                    <h4 className="text-sm font-medium text-pink-700 mb-1">Saved Configurations:</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {channelConfigs.map(config => (
+                        <div 
+                          key={config.id} 
+                          onClick={() => loadChannelConfig(config)}
+                          className="bg-pink-100 hover:bg-pink-200 text-pink-800 px-3 py-1 rounded-md text-sm cursor-pointer flex items-center"
+                        >
+                          {config.name} ({config.channels.length})
+                          <button 
+                            onClick={(e) => deleteChannelConfig(config.id, e)}
+                            className="ml-2 text-pink-600 hover:text-pink-800"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 <div className="max-h-60 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-1">
                   {uniqueChannels.map(channel => (
                     <div key={channel} className="flex items-center">
@@ -400,9 +460,14 @@ function App() {
                     {selectedChannels.length} channels selected
                   </p>
                   {selectedChannels.length > 0 && (
-                    <p className="text-gray-600 mt-1">
-                      Only showing users with activity in selected channels
-                    </p>
+                    <div className="flex items-center mt-2">
+                      <button 
+                        onClick={() => setShowConfigModal(true)}
+                        className="bg-pink-500 hover:bg-pink-600 text-white font-medium py-1 px-3 rounded-md text-sm"
+                      >
+                        Save Configuration
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -431,7 +496,6 @@ function App() {
             </button>
           </div>
           
-          {/* Channel filter indicator */}
           {selectedChannels.length > 0 && (
             <div className="md:col-span-3 flex flex-wrap gap-2 mt-2">
               <span className="text-pink-700 font-medium">Filtered channels:</span>
@@ -619,6 +683,40 @@ function App() {
           </div>
         )}
       </div>
+      
+      {/* Модальное окно для сохранения конфигурации */}
+      {showConfigModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h3 className="text-xl font-semibold text-pink-700 mb-4">Save Channel Configuration</h3>
+            <input
+              type="text"
+              placeholder="Configuration name"
+              className="border border-pink-300 rounded-md p-2 w-full mb-4 focus:outline-none focus:ring-2 focus:ring-pink-500"
+              value={configName}
+              onChange={(e) => setConfigName(e.target.value)}
+            />
+            <p className="text-sm text-gray-600 mb-4">
+              This will save your current selection of {selectedChannels.length} channels.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button 
+                onClick={() => setShowConfigModal(false)}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-md"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={saveChannelConfig}
+                className="bg-pink-500 hover:bg-pink-600 text-white font-medium py-2 px-4 rounded-md"
+                disabled={!configName.trim() || selectedChannels.length === 0}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
