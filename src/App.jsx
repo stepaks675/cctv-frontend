@@ -434,7 +434,7 @@ function App() {
 
         <div className="mb-8 bg-white p-6 rounded-lg shadow-md border border-pink-200">
           <h2 className="text-2xl font-semibold mb-4 text-pink-700">
-            Snapshots
+            Snapshots (better use the last one)
           </h2>
           {loading && snapshots.length === 0 ? (
             <p className="text-pink-600">Loading snapshots...</p>
