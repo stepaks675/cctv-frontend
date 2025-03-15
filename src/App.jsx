@@ -82,20 +82,14 @@ function App() {
             }
           }
 
-          if (dailyComparisonIndex > 0) {
+          if (dailyComparisonIndex > 0 && dailyComparisonIndex < 6) {
             const dailySnapshotId = response.data[dailyComparisonIndex].id;
             fetchComparisonSnapshot(dailySnapshotId, "daily");
-          } else if (response.data.length > 1) {
-            const oldestSnapshotId = response.data[response.data.length - 1].id;
-            fetchComparisonSnapshot(oldestSnapshotId, "daily");
           }
 
-          if (weeklyComparisonIndex > 0) {
+          if (weeklyComparisonIndex > 0 && weeklyComparisonIndex < 42) {
             const weeklySnapshotId = response.data[weeklyComparisonIndex].id;
             fetchComparisonSnapshot(weeklySnapshotId, "weekly");
-          } else if (response.data.length > 1) {
-            const oldestSnapshotId = response.data[response.data.length - 1].id;
-            fetchComparisonSnapshot(oldestSnapshotId, "weekly");
           }
         } else {
           setLoading(false);
@@ -139,9 +133,14 @@ function App() {
 
   const fetchBreakdownSnapshots = async (snapshotId, id) => {
     try {
+
       const response = await axios.get(`${API_URL}/snapshots/${snapshotId}`, {
         headers: { "x-api-key": API_KEY },
       });
+
+      if (id === 0) setDailyComparisonSnapshot(response.data);
+      if (id === 6) setWeeklyComparisonSnapshot(response.data);
+
       setBreakdownSnapshots((prev) => {
         const newBreakdownSnapshots = [...prev];
         newBreakdownSnapshots[id] = response.data;
@@ -277,7 +276,6 @@ function App() {
     }));
   };
 
-  // Toggle channel selection
   const toggleChannelSelection = (channelName) => {
     setSelectedChannels((prev) => {
       if (prev.includes(channelName)) {
@@ -299,7 +297,8 @@ function App() {
   const filteredUsers = users.filter((user) => {
     const matchesSearch = user.username
       .toLowerCase()
-      .includes(searchTerm.toLowerCase());
+      .includes(searchTerm.toLowerCase()) || 
+      user.user_id.toString().includes(searchTerm);
     const matchesRole =
       selectedRole === "all" || user.roles.split(", ").includes(selectedRole);
 
@@ -487,7 +486,7 @@ function App() {
           <div className="relative">
             <input
               type="text"
-              placeholder="Search users..."
+              placeholder="Search by username or ID..."
               className="border border-pink-300 rounded-md p-3 w-full pl-10 focus:outline-none focus:ring-2 focus:ring-pink-500"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -789,7 +788,7 @@ function App() {
                     );
                   }
 
-                  const sortedChannels = [...userChannels];
+                  const sortedChannels = userChannels.sort((a, b) => b.message_count - a.message_count);
 
                   const displayChannels = isExpanded
                     ? sortedChannels
@@ -799,6 +798,7 @@ function App() {
                     <tr key={user.user_id} className={rowClass}>
                       <td className="py-3 pl-4 border-b border-pink-100 font-medium">
                         {user.username}
+                        <div className="text-xs text-gray-500">ID: {user.user_id}</div>
                       </td>
                       <td className="py-3 px-0 border-b border-pink-100">
                         {formattedRoles}
