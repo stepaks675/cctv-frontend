@@ -27,6 +27,7 @@ function App() {
     "Helper Prover",
     "Prover",
     "Proofer",
+    "Retired Prover",
     "PROVED UR LUV",
     "PROOF OF ART",
     "PROOF OF VIDEO",
@@ -35,7 +36,7 @@ function App() {
     "PROOF OF WRITING",
     "Proof Verified",
     "lets pruv it",
-    "Retired Prover"
+
   ];
 
   const roleColors = {
@@ -48,7 +49,7 @@ function App() {
     "PROOF OF WRITING": "text-indigo-600 ",
     "Super Prover": "text-pink-800 font-bold",
     "Proofer": "text-purple-600 font-bold",
-    "Helper Prover": "text-yellow-600 font-bold",
+    "Helper Prover": "text-yellow-500 font-bold",
     "Proof Verified": "text-gray-600",
     "lets pruv it": "text-gray-300",
     "Retired Prover": "text-black font-bold"
@@ -767,9 +768,9 @@ function App() {
                   let rowClass = index % 2 === 0 ? "bg-white" : "bg-pink-50";
 
                   if (weeklyChange === 0) {
-                    rowClass = "bg-red-200";
+                    rowClass = "bg-red-100";
                   } else if (dailyChange === 0) {
-                    rowClass = "bg-orange-200";
+                    rowClass = "bg-orange-100";
                   }
 
                   const sortedRoles = sortUserRoles(user.roles);
