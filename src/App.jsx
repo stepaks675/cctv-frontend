@@ -34,12 +34,13 @@ function App() {
     "PROOF OF MUSIC",
     "PROOF OF WRITING",
     "Proof Verified",
-    "lets pruv it"
+    "lets pruv it",
+    "Retired Prover"
   ];
 
   const roleColors = {
     "PROVED UR LUV": "text-purple-600 font-bold",
-    Prover: "text-blue-600 font-bold",
+    "Prover": "text-blue-600 font-bold",
     "PROOF OF ART": "text-pink-600",
     "PROOF OF VIDEO": "text-red-600 ",
     "PROOF OF DEV": "text-green-600 ",
@@ -50,6 +51,7 @@ function App() {
     "Helper Prover": "text-yellow-300 font-bold",
     "Proof Verified": "text-gray-600",
     "lets pruv it": "text-gray-300",
+    "Retired Prover": "text-black font-bold"
   };
 
   const API_URL = "https://succinctrolecctv-production.up.railway.app/api";
