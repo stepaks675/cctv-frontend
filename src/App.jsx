@@ -22,6 +22,8 @@ function App() {
   const [channelConfigs, setChannelConfigs] = useState([]);
   const [configName, setConfigName] = useState("");
   const [showConfigModal, setShowConfigModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [usersPerPage, setUsersPerPage] = useState(20);
   const importantRoles = [
     "Super Prover",
     "Helper Prover",
@@ -37,8 +39,6 @@ function App() {
     "Proof Verified",
     "lets pruv it",
   ];
-  console.log(breakdownSnapshots)
-  console.log(weeklyComparisonSnapshot)
   const roleColors = {
     "PROVED UR LUV": "text-purple-600 font-bold",
     "Prover": "text-blue-600 font-bold",
@@ -57,7 +57,6 @@ function App() {
 
   const API_URL = "https://succinctrolecctv-production.up.railway.app/api";
   const API_KEY = "amogus";
-
   useEffect(() => {
     const fetchSnapshots = async () => {
       try {
@@ -423,6 +422,25 @@ function App() {
     localStorage.setItem("channelConfigs", JSON.stringify(updatedConfigs));
   };
 
+  const indexOfLastUser = currentPage * usersPerPage;
+  const indexOfFirstUser = indexOfLastUser - usersPerPage;
+  
+  const currentUsers = sortedUsers.slice(indexOfFirstUser, indexOfLastUser);
+  
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  
+  const previousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+  
+  const nextPage = () => {
+    if (currentPage < Math.ceil(sortedUsers.length / usersPerPage)) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-pink-50">
       <div className="container mx-auto p-6">
@@ -729,256 +747,331 @@ function App() {
             <p className="text-pink-600 text-lg">Loading user data...</p>
           </div>
         ) : (
-          <div className="overflow-x-auto bg-white rounded-lg shadow-md border border-pink-200">
-            <table className="min-w-full">
-              <thead>
-                <tr className="bg-pink-200">
-                  <th className="py-3 px-4 text-left text-pink-800">User</th>
-                  <th className="py-3 px-4 text-left text-pink-800">Roles</th>
-                  <th className="py-3 px-4 text-center text-pink-800">
-                    Total Messages
-                  </th>
-                  <th className="py-3 px-4 text-center text-pink-800">
-                    Daily Change
-                  </th>
-                  <th className="py-3 px-4 text-center text-pink-800">
-                    Weekly Change
-                  </th>
-                  <th className="py-3 px-4 text-left text-pink-800">
-                    Channel Activity
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedUsers.map((user, index) => {
-                  const dailyMessageData = calculateMessageChange(
-                    user,
-                    "daily"
-                  );
-
-                  const weeklyMessageData = calculateMessageChange(
-                    user,
-                    "weekly"
-                  );
-
-                  const breakdownData = calculateDailyBreakdownChange(user);
-                  const dailyChange = dailyMessageData?.change || 0;
-                  const weeklyChange = weeklyMessageData?.change || 0;
-
-                  let rowClass = index % 2 === 0 ? "bg-white" : "bg-pink-50";
-
-                  if (weeklyChange === 0) {
-                    rowClass = "bg-red-100";
-                  } else if (dailyChange === 0) {
-                    rowClass = "bg-orange-100";
-                  }
-
-                  const sortedRoles = sortUserRoles(user.roles);
-
-                  const formattedRoles = sortedRoles.map((role, idx) => {
-                    const element = formatRole(role);
-
-                    if (idx < sortedRoles.length - 1) {
-                      return [element, <span key={`comma-${idx}`}>, </span>];
-                    }
-                    return element;
-                  });
-
-                  const isExpanded = expandedUsers[user.user_id] || false;
-
-                  let userChannels = [...user.channels];
-                  if (selectedChannels.length > 0) {
-                    userChannels = userChannels.filter((channel) =>
-                      selectedChannels.includes(channel.channel_name)
+          <>
+            <div className="mb-4 flex justify-between items-center">
+              <div className="text-sm text-pink-700">
+                Showing {indexOfFirstUser + 1}-{Math.min(indexOfLastUser, sortedUsers.length)} of {sortedUsers.length} users
+              </div>
+              <div className="flex items-center">
+                <span className="mr-2 text-sm text-pink-700">Users per page:</span>
+                <select
+                  className="border border-pink-300 rounded-md p-1 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  value={usersPerPage}
+                  onChange={(e) => {
+                    setUsersPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="overflow-x-auto bg-white rounded-lg shadow-md border border-pink-200">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="bg-pink-200">
+                    <th className="py-3 px-4 text-left text-pink-800">User</th>
+                    <th className="py-3 px-4 text-left text-pink-800">Roles</th>
+                    <th className="py-3 px-4 text-center text-pink-800">
+                      Total Messages
+                    </th>
+                    <th className="py-3 px-4 text-center text-pink-800">
+                      Daily Change
+                    </th>
+                    <th className="py-3 px-4 text-center text-pink-800">
+                      Weekly Change
+                    </th>
+                    <th className="py-3 px-4 text-left text-pink-800">
+                      Channel Activity
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentUsers.map((user, index) => {
+                    const dailyMessageData = calculateMessageChange(
+                      user,
+                      "daily"
                     );
-                  }
 
-                  const sortedChannels = userChannels.sort((a, b) => b.message_count - a.message_count);
+                    const weeklyMessageData = calculateMessageChange(
+                      user,
+                      "weekly"
+                    );
 
-                  const displayChannels = isExpanded
-                    ? sortedChannels
-                    : sortedChannels.slice(0, 5);
+                    const breakdownData = calculateDailyBreakdownChange(user);
+                    const dailyChange = dailyMessageData?.change || 0;
+                    const weeklyChange = weeklyMessageData?.change || 0;
 
-                  return (
-                    <tr key={index} className={rowClass}>
-                      <td className="py-3 pl-4 border-b border-pink-100 font-medium">
-                        {user.username}
-                        <div className="text-xs text-gray-500">ID: {user.user_id}</div>
-                      </td>
-                      <td className="py-3 px-0 border-b border-pink-100">
-                        {formattedRoles}
-                      </td>
-                      <td className="py-3 px-0 border-b border-pink-100 text-center">
-                        {user.total_messages}
-                      </td>
+                    let rowClass = index % 2 === 0 ? "bg-white" : "bg-pink-50";
 
-                      <td className="py-3 px-4 border-b border-pink-100 text-center">
-                        {dailyMessageData &&
-                        dailyMessageData.change !== null ? (
-                          <span
-                            className={`font-medium ${
-                              dailyMessageData.change > 0
-                                ? "text-green-600"
-                                : dailyMessageData.change < 0
-                                ? "text-red-600"
-                                : "text-orange-500 font-bold"
-                            }`}
+                    if (weeklyChange === 0) {
+                      rowClass = "bg-red-100";
+                    } else if (dailyChange === 0) {
+                      rowClass = "bg-orange-100";
+                    }
+
+                    const sortedRoles = sortUserRoles(user.roles);
+
+                    const formattedRoles = sortedRoles.map((role, idx) => {
+                      const element = formatRole(role);
+
+                      if (idx < sortedRoles.length - 1) {
+                        return [element, <span key={`comma-${idx}`}>, </span>];
+                      }
+                      return element;
+                    });
+
+                    const isExpanded = expandedUsers[user.user_id] || false;
+
+                    let userChannels = [...user.channels];
+                    if (selectedChannels.length > 0) {
+                      userChannels = userChannels.filter((channel) =>
+                        selectedChannels.includes(channel.channel_name)
+                      );
+                    }
+
+                    const sortedChannels = userChannels.sort((a, b) => b.message_count - a.message_count);
+
+                    const displayChannels = isExpanded
+                      ? sortedChannels
+                      : sortedChannels.slice(0, 5);
+
+                    return (
+                      <tr key={index} className={rowClass}>
+                        <td className="py-3 pl-4 border-b border-pink-100 font-medium">
+                          {user.username}
+                          <div className="text-xs text-gray-500">ID: {user.user_id}</div>
+                        </td>
+                        <td className="py-3 px-0 border-b border-pink-100">
+                          {formattedRoles}
+                        </td>
+                        <td className="py-3 px-0 border-b border-pink-100 text-center">
+                          {user.total_messages}
+                        </td>
+
+                        <td className="py-3 px-4 border-b border-pink-100 text-center">
+                          {dailyMessageData &&
+                          dailyMessageData.change !== null ? (
+                            <span
+                              className={`font-medium ${
+                                dailyMessageData.change > 0
+                                  ? "text-green-600"
+                                  : dailyMessageData.change < 0
+                                  ? "text-red-600"
+                                  : "text-orange-500 font-bold"
+                              }`}
+                            >
+                              {dailyMessageData.change > 0 ? "+" : ""}
+                              {dailyMessageData.change}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">N/A</span>
+                          )}
+                        </td>
+
+                        <td className="py-3 px-4 border-b border-pink-100 text-center">
+                          {weeklyMessageData &&
+                          weeklyMessageData.change !== null ? (
+                            <span
+                              className={`font-medium ${
+                                weeklyMessageData.change > 0
+                                  ? "text-green-600"
+                                  : weeklyMessageData.change < 0
+                                  ? "text-red-600"
+                                  : "text-red-500 font-bold"
+                              }`}
+                            >
+                              {weeklyMessageData.change > 0 ? "+" : ""}
+                              {weeklyMessageData.change}
+                              <br />
+                              <span className="text-sm text-gray-500">
+                                [
+                                {breakdownData.breakdown.map((num, index) => {
+                                  return (
+                                    <span
+                                      className={
+                                        num > 0
+                                          ? "text-green-600"
+                                          : "text-red-600"
+                                      }
+                                      key={index}
+                                    >
+                                      {num}
+                                      {index != 6 ? ", " : ""}
+                                    </span>
+                                  );
+                                })}
+                                ]
+                              </span>
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">N/A</span>
+                          )}
+                        </td>
+
+                        <td className="py-3 px-4 border-b border-pink-100">
+                          <div
+                            className="cursor-pointer"
+                            onClick={() => toggleChannelExpansion(user.user_id)}
                           >
-                            {dailyMessageData.change > 0 ? "+" : ""}
-                            {dailyMessageData.change}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">N/A</span>
-                        )}
-                      </td>
+                            <ul className="list-disc pl-5">
+                              {displayChannels.map((channel, index) => {
+                                const dailyChannelChange =
+                                  dailyMessageData &&
+                                  dailyMessageData.channelChanges
+                                    ? dailyMessageData.channelChanges.find(
+                                        (c) => c.channel_id === channel.channel_id
+                                      )?.change
+                                    : null;
 
-                      <td className="py-3 px-4 border-b border-pink-100 text-center">
-                        {weeklyMessageData &&
-                        weeklyMessageData.change !== null ? (
-                          <span
-                            className={`font-medium ${
-                              weeklyMessageData.change > 0
-                                ? "text-green-600"
-                                : weeklyMessageData.change < 0
-                                ? "text-red-600"
-                                : "text-red-500 font-bold"
-                            }`}
-                          >
-                            {weeklyMessageData.change > 0 ? "+" : ""}
-                            {weeklyMessageData.change}
-                            <br />
-                            <span className="text-sm text-gray-500">
-                              [
-                              {breakdownData.breakdown.map((num, index) => {
+                                const weeklyChannelChange =
+                                  weeklyMessageData &&
+                                  weeklyMessageData.channelChanges
+                                    ? weeklyMessageData.channelChanges.find(
+                                        (c) => c.channel_id === channel.channel_id
+                                      )?.change
+                                    : null;
+
                                 return (
-                                  <span
-                                    className={
-                                      num > 0
-                                        ? "text-green-600"
-                                        : "text-red-600"
-                                    }
-                                    key={index}
-                                  >
-                                    {num}
-                                    {index != 6 ? ", " : ""}
-                                  </span>
+                                  <li key={channel.channel_id} className="mb-1">
+                                    <div className="flex flex-wrap items-center">
+                                      <span className="font-medium">
+                                        {channel.channel_name}:
+                                      </span>
+                                      <span className="ml-1">
+                                        {channel.message_count} messages
+                                      </span>
+
+                                      {dailyChannelChange !== null &&
+                                        dailyChannelChange !== 0 && (
+                                          <span
+                                            className={`ml-2 
+     
+                                                 text-green-600
+        
+                                             font-medium`}
+                                          >
+                                            ({dailyChannelChange > 0 ? "+" : ""}
+                                            {dailyChannelChange})
+                                          </span>
+                                        )}
+
+                                      {weeklyChannelChange !== null &&
+                                      (
+                                          <span
+                                            className={`ml-2 pr-2
+                                        
+                                                 text-blue-600
+                  
+                                             font-medium`}
+                                          >
+                                            [{""}
+                                            {weeklyChannelChange > 0 ? "+" : ""}
+                                            {weeklyChannelChange}]
+                                          </span>
+                                        )}
+                                      
+                                      [{breakdownData.channelBreakdown.map((num, ind) => {
+                                        if (ind == 7) return null;
+
+                                        const realindex = breakdownData?.channelBreakdown[7]?.indexOf(channel.channel_id);
+                                        return (
+
+                                          <span className={(num[realindex] > 0 ? "text-green-600" : "text-red-600") + " pr-1  "} key={ind}>
+                                            {num[realindex]}  
+                                            {(ind != 6 ? ", " : "")}
+                                            
+                                          </span>
+                                        );
+                                      })}]
+                                    </div>
+                                  </li>
                                 );
                               })}
-                              ]
-                            </span>
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">N/A</span>
-                        )}
-                      </td>
 
-                      <td className="py-3 px-4 border-b border-pink-100">
-                        <div
-                          className="cursor-pointer"
-                          onClick={() => toggleChannelExpansion(user.user_id)}
-                        >
-                          <ul className="list-disc pl-5">
-                            {displayChannels.map((channel, index) => {
-                              const dailyChannelChange =
-                                dailyMessageData &&
-                                dailyMessageData.channelChanges
-                                  ? dailyMessageData.channelChanges.find(
-                                      (c) => c.channel_id === channel.channel_id
-                                    )?.change
-                                  : null;
-
-                              const weeklyChannelChange =
-                                weeklyMessageData &&
-                                weeklyMessageData.channelChanges
-                                  ? weeklyMessageData.channelChanges.find(
-                                      (c) => c.channel_id === channel.channel_id
-                                    )?.change
-                                  : null;
-
-                              return (
-                                <li key={channel.channel_id} className="mb-1">
-                                  <div className="flex flex-wrap items-center">
-                                    <span className="font-medium">
-                                      {channel.channel_name}:
-                                    </span>
-                                    <span className="ml-1">
-                                      {channel.message_count} messages
-                                    </span>
-
-                                    {dailyChannelChange !== null &&
-                                      dailyChannelChange !== 0 && (
-                                        <span
-                                          className={`ml-2 
-     
-                                               text-green-600
-        
-                                           font-medium`}
-                                        >
-                                          ({dailyChannelChange > 0 ? "+" : ""}
-                                          {dailyChannelChange})
-                                        </span>
-                                      )}
-
-                                    {weeklyChannelChange !== null &&
-                                      weeklyChannelChange !== 0 && (
-                                        <span
-                                          className={`ml-2 pr-2
-                                      
-                                               text-blue-600
-                  
-                                           font-medium`}
-                                        >
-                                          [{""}
-                                          {weeklyChannelChange > 0 ? "+" : ""}
-                                          {weeklyChannelChange}]
-                                        </span>
-                                      )}
-                                    
-                                    [{breakdownData.channelBreakdown.map((num, ind) => {
-                                      if (ind == 7) return null;
-
-                                      const realindex = breakdownData?.channelBreakdown[7]?.indexOf(channel.channel_id);
-                                      return (
-
-                                        <span className={(num[realindex] > 0 ? "text-green-600" : "text-red-600") + " pr-1  "} key={ind}>
-                                          {num[realindex]}  
-                                          {(ind != 6 ? ", " : "")}
-                                          
-                                        </span>
-                                      );
-                                    })}]
-                                  </div>
+                              {!isExpanded && displayChannels.length > 5 && (
+                                <li className="text-pink-500 font-medium mt-1 hover:text-pink-700">
+                                  Click to show all {displayChannels.length}{" "}
+                                  channels
                                 </li>
-                              );
-                            })}
-
-                            {!isExpanded && displayChannels.length > 5 && (
-                              <li className="text-pink-500 font-medium mt-1 hover:text-pink-700">
-                                Click to show all {displayChannels.length}{" "}
-                                channels
-                              </li>
-                            )}
-                            {isExpanded && displayChannels.length > 5 && (
-                              <li className="text-pink-500 font-medium mt-1 hover:text-pink-700">
-                                Click to collapse
-                              </li>
-                            )}
-                          </ul>
-                        </div>
+                              )}
+                              {isExpanded && displayChannels.length > 5 && (
+                                <li className="text-pink-500 font-medium mt-1 hover:text-pink-700">
+                                  Click to collapse
+                                </li>
+                              )}
+                            </ul>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {sortedUsers.length === 0 && (
+                    <tr>
+                      <td colSpan="6" className="py-8 text-center text-pink-600">
+                        No users found matching the selected filters
                       </td>
                     </tr>
-                  );
-                })}
-                {sortedUsers.length === 0 && (
-                  <tr>
-                    <td colSpan="6" className="py-8 text-center text-pink-600">
-                      No users found matching the selected filters
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            
+            {sortedUsers.length > usersPerPage && (
+              <div className="mt-4 flex justify-center">
+                <nav className="flex items-center">
+                  <button
+                    onClick={previousPage}
+                    disabled={currentPage === 1}
+                    className={`mx-1 px-3 py-1 rounded-md ${
+                      currentPage === 1 
+                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                        : 'bg-pink-500 text-white hover:bg-pink-600'
+                    }`}
+                  >
+                    Previous
+                  </button>
+                  
+                  {Array.from({ length: Math.min(5, Math.ceil(sortedUsers.length / usersPerPage)) }, (_, i) => {
+                    const pageCount = Math.ceil(sortedUsers.length / usersPerPage);
+                    let startPage = Math.max(1, currentPage - 2);
+                    const endPage = Math.min(pageCount, startPage + 4);
+                    startPage = Math.max(1, endPage - 4);
+                    
+                    return i + startPage;
+                  }).map(number => (
+                    <button
+                      key={number}
+                      onClick={() => paginate(number)}
+                      className={`mx-1 px-3 py-1 rounded-md ${
+                        currentPage === number
+                          ? 'bg-pink-600 text-white'
+                          : 'bg-pink-200 text-pink-800 hover:bg-pink-300'
+                      }`}
+                    >
+                      {number}
+                    </button>
+                  ))}
+                  
+                  <button
+                    onClick={nextPage}
+                    disabled={currentPage === Math.ceil(sortedUsers.length / usersPerPage)}
+                    className={`mx-1 px-3 py-1 rounded-md ${
+                      currentPage === Math.ceil(sortedUsers.length / usersPerPage) 
+                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                        : 'bg-pink-500 text-white hover:bg-pink-600'
+                    }`}
+                  >
+                    Next
+                  </button>
+                </nav>
+              </div>
+            )}
+          </>
         )}
       </div>
 
