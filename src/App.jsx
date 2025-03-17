@@ -36,9 +36,9 @@ function App() {
     "PROOF OF WRITING",
     "Proof Verified",
     "lets pruv it",
-
   ];
-
+  console.log(breakdownSnapshots)
+  console.log(weeklyComparisonSnapshot)
   const roleColors = {
     "PROVED UR LUV": "text-purple-600 font-bold",
     "Prover": "text-blue-600 font-bold",
@@ -800,7 +800,7 @@ function App() {
                     : sortedChannels.slice(0, 5);
 
                   return (
-                    <tr key={user.user_id} className={rowClass}>
+                    <tr key={index} className={rowClass}>
                       <td className="py-3 pl-4 border-b border-pink-100 font-medium">
                         {user.username}
                         <div className="text-xs text-gray-500">ID: {user.user_id}</div>
