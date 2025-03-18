@@ -24,6 +24,7 @@ function App() {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage, setUsersPerPage] = useState(20);
+  const [pageInputValue, setPageInputValue] = useState('1');
   const importantRoles = [
     "Super Prover",
     "Helper Prover",
@@ -110,6 +111,11 @@ function App() {
       setChannelConfigs(JSON.parse(savedConfigs));
     }
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setPageInputValue('1');
+  }, [searchTerm, selectedRole, selectedChannels, messageChangeFilter, sortOrder]);
 
   const fetchSnapshotDetails = async (snapshotId) => {
     try {
@@ -438,6 +444,34 @@ function App() {
   const nextPage = () => {
     if (currentPage < Math.ceil(sortedUsers.length / usersPerPage)) {
       setCurrentPage(currentPage + 1);
+    }
+  };
+
+  useEffect(() => {
+    const maxPage = Math.ceil(sortedUsers.length / usersPerPage);
+    if (currentPage > maxPage && maxPage > 0) {
+      setCurrentPage(maxPage);
+      setPageInputValue(maxPage.toString());
+    }
+  }, [sortedUsers, usersPerPage]);
+
+  const handlePageInputChange = (e) => {
+    setPageInputValue(e.target.value);
+  };
+
+  const handlePageInputSubmit = (e) => {
+    e.preventDefault();
+    const page = parseInt(pageInputValue);
+    const maxPage = Math.ceil(sortedUsers.length / usersPerPage);
+    
+    if (page >= 1 && page <= maxPage) {
+      setCurrentPage(page);
+    } else if (page < 1) {
+      setCurrentPage(1);
+      setPageInputValue('1');
+    } else {
+      setCurrentPage(maxPage);
+      setPageInputValue(maxPage.toString());
     }
   };
 
@@ -1022,7 +1056,7 @@ function App() {
             </div>
             
             {sortedUsers.length > usersPerPage && (
-              <div className="mt-4 flex justify-center">
+              <div className="mt-4 flex flex-col sm:flex-row justify-center items-center gap-4">
                 <nav className="flex items-center">
                   <button
                     onClick={previousPage}
@@ -1046,7 +1080,10 @@ function App() {
                   }).map(number => (
                     <button
                       key={number}
-                      onClick={() => paginate(number)}
+                      onClick={() => {
+                        paginate(number);
+                        setPageInputValue(number.toString());
+                      }}
                       className={`mx-1 px-3 py-1 rounded-md ${
                         currentPage === number
                           ? 'bg-pink-600 text-white'
@@ -1069,6 +1106,26 @@ function App() {
                     Next
                   </button>
                 </nav>
+                
+                <form 
+                  onSubmit={handlePageInputSubmit} 
+                  className="flex items-center"
+                >
+                  <span className="text-sm text-pink-700 mr-2">Go to page:</span>
+                  <input
+                    type="text"
+                    value={pageInputValue}
+                    onChange={handlePageInputChange}
+                    className="border border-pink-300 rounded-md p-1 w-16 text-center text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  />
+                  <span className="text-sm text-pink-700 mx-2">of {Math.ceil(sortedUsers.length / usersPerPage)}</span>
+                  <button
+                    type="submit"
+                    className="bg-pink-500 text-white text-sm px-2 py-1 rounded-md hover:bg-pink-600"
+                  >
+                    Go
+                  </button>
+                </form>
               </div>
             )}
           </>
