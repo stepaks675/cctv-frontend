@@ -27,9 +27,11 @@ function App() {
   const [pageInputValue, setPageInputValue] = useState('1');
   const importantRoles = [
     "Super Prover",
+    "Cargo Prover",
     "Helper Prover",
     "Prover",
     "Proofer",
+    "sp1up Prover",
     "Retired Prover",
     "PROVED UR LUV",
     "PROOF OF ART",
