@@ -29,6 +29,7 @@ function App() {
     "Super Prover",
     "Cargo Prover",
     "Helper Prover",
+    "Regional Lead",
     "Prover",
     "Proofer",
     "sp1up Prover",
@@ -44,6 +45,7 @@ function App() {
   ];
   const roleColors = {
     "PROVED UR LUV": "text-purple-600 font-bold",
+    "Regional Lead": "text-yellow-500 font-bold",
     "Prover": "text-blue-600 font-bold",
     "PROOF OF ART": "text-pink-300",
     "PROOF OF VIDEO": "text-red-300 ",
