@@ -246,15 +246,29 @@ function App() {
     const oldUserData = comparisonSnapshot.users.find(
       (u) => u.user_id === user.user_id
     );
+    
     if (!oldUserData)
-      return { total: user.total_messages, change: user.total_messages };
+      return { 
+        total: user.total_messages, 
+        change: user.total_messages,
+        channelChanges: user.channels.map(channel => ({
+          ...channel,
+          change: channel.message_count
+        }))
+      };
 
     const change = user.total_messages - oldUserData.total_messages;
 
+    // Создадим Map для быстрого доступа к каналам в старом снапшоте
+    const oldChannelsMap = new Map();
+    if (oldUserData.channels && Array.isArray(oldUserData.channels)) {
+      oldUserData.channels.forEach(channel => {
+        oldChannelsMap.set(channel.channel_id, channel);
+      });
+    }
+
     const channelChanges = user.channels.map((channel) => {
-      const oldChannel = oldUserData.channels.find(
-        (c) => c.channel_id === channel.channel_id
-      );
+      const oldChannel = oldChannelsMap.get(channel.channel_id);
       const oldCount = oldChannel ? oldChannel.message_count : 0;
       const channelChange = channel.message_count - oldCount;
 
@@ -316,12 +330,6 @@ function App() {
     const matchesRole =
       selectedRole === "all" || user.roles.split(", ").includes(selectedRole);
 
-    const matchesMultiChannel =
-      selectedChannels.length === 0 ||
-      user.channels.some((channel) =>
-        selectedChannels.includes(channel.channel_name)
-      );
-
     const hasActivityInSelectedChannels =
       selectedChannels.length === 0 ||
       user.channels.some(
@@ -340,29 +348,62 @@ function App() {
     return (
       matchesSearch &&
       matchesRole &&
-      (selectedChannels.length > 0
-        ? matchesMultiChannel && hasActivityInSelectedChannels
-        : 1)
+      hasActivityInSelectedChannels
     );
   });
 
   const sortedUsers = [...filteredUsers].sort((a, b) => {
     if (messageChangeFilter === "none") {
-      if (sortOrder === "desc") {
-        return b.total_messages - a.total_messages;
+      if (selectedChannels.length === 0) {
+        if (sortOrder === "desc") {
+          return b.total_messages - a.total_messages;
+        } else {
+          return a.total_messages - b.total_messages;
+        }
       } else {
-        return a.total_messages - b.total_messages;
+        const aActivitySum = a.channels
+          .filter(c => selectedChannels.includes(c.channel_name))
+          .reduce((sum, c) => sum + c.message_count, 0);
+        
+        const bActivitySum = b.channels
+          .filter(c => selectedChannels.includes(c.channel_name))
+          .reduce((sum, c) => sum + c.message_count, 0);
+        
+        if (sortOrder === "desc") {
+          return bActivitySum - aActivitySum;
+        } else {
+          return aActivitySum - bActivitySum;
+        }
       }
     } else {
-      const changeA =
-        calculateMessageChange(a, messageChangeFilter)?.change || 0;
-      const changeB =
-        calculateMessageChange(b, messageChangeFilter)?.change || 0;
+      if (selectedChannels.length === 0) {
+        const changeA =
+          calculateMessageChange(a, messageChangeFilter)?.change || 0;
+        const changeB =
+          calculateMessageChange(b, messageChangeFilter)?.change || 0;
 
-      if (sortOrder === "desc") {
-        return changeB - changeA;
+        if (sortOrder === "desc") {
+          return changeB - changeA;
+        } else {
+          return changeA - changeB;
+        }
       } else {
-        return changeA - changeB;
+        const aChanges = calculateMessageChange(a, messageChangeFilter)?.channelChanges || [];
+        const bChanges = calculateMessageChange(b, messageChangeFilter)?.channelChanges || [];
+        
+        const aChangeSum = aChanges
+          .filter(c => selectedChannels.includes(c.channel_name))
+          .reduce((sum, c) => sum + (c.change || 0), 0);
+        
+        const bChangeSum = bChanges
+          .filter(c => selectedChannels.includes(c.channel_name))
+          .reduce((sum, c) => sum + (c.change || 0), 0);
+        
+        if (sortOrder === "desc") {
+          return bChangeSum - aChangeSum;
+        } else {
+          return aChangeSum - bChangeSum;
+        }
       }
     }
   });
@@ -477,6 +518,20 @@ function App() {
       setCurrentPage(maxPage);
       setPageInputValue(maxPage.toString());
     }
+  };
+
+  const getTotalSelectedChannelsActivity = () => {
+    if (selectedChannels.length === 0) return null;
+    
+    const totalMessages = filteredUsers.reduce((sum, user) => {
+      const channelActivitySum = user.channels
+        .filter(c => selectedChannels.includes(c.channel_name))
+        .reduce((channelSum, c) => channelSum + c.message_count, 0);
+      
+      return sum + channelActivitySum;
+    }, 0);
+    
+    return totalMessages;
   };
 
   return (
@@ -739,43 +794,45 @@ function App() {
           </div>
 
           {selectedChannels.length > 0 && (
-            <div className="md:col-span-3 flex flex-wrap gap-2 mt-2">
-              <span className="text-pink-700 font-medium">
-                Filtered channels:
-              </span>
-              {selectedChannels.map((channel) => (
-                <span
-                  key={channel}
-                  className="bg-pink-200 text-pink-800 px-2 py-1 rounded-full text-sm flex items-center"
-                >
-                  {channel}
-                  <button
-                    onClick={() => toggleChannelSelection(channel)}
-                    className="ml-1 text-pink-600 hover:text-pink-800"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  </button>
+            <div className="md:col-span-3 mt-2">
+              <div className="flex flex-wrap gap-2">
+                <span className="text-pink-700 font-medium">
+                  Showing only activity in:
                 </span>
-              ))}
-              <button
-                onClick={clearSelectedChannels}
-                className="text-pink-600 hover:text-pink-800 text-sm underline"
-              >
-                Clear all
-              </button>
+                {selectedChannels.map((channel) => (
+                  <span
+                    key={channel}
+                    className="bg-pink-200 text-pink-800 px-2 py-1 rounded-full text-sm flex items-center"
+                  >
+                    {channel}
+                    <button
+                      onClick={() => toggleChannelSelection(channel)}
+                      className="ml-1 text-pink-600 hover:text-pink-800"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </span>
+                ))}
+                <button
+                  onClick={clearSelectedChannels}
+                  className="text-pink-600 hover:text-pink-800 text-sm underline"
+                >
+                  Clear all
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -867,16 +924,20 @@ function App() {
 
                     let userChannels = [...user.channels];
                     if (selectedChannels.length > 0) {
-                      userChannels = userChannels.filter((channel) =>
-                        selectedChannels.includes(channel.channel_name)
-                      );
+                      userChannels = userChannels
+                        .filter(c => selectedChannels.includes(c.channel_name))
+                        .sort((a, b) => b.message_count - a.message_count);
+                    } else {
+                      userChannels = userChannels.sort((a, b) => b.message_count - a.message_count);
                     }
 
-                    const sortedChannels = userChannels.sort((a, b) => b.message_count - a.message_count);
-
                     const displayChannels = isExpanded
-                      ? sortedChannels
-                      : sortedChannels.slice(0, 5);
+                      ? userChannels
+                      : userChannels.slice(0, 5);
+
+                    const selectedChannelsActivity = user.channels
+                      .filter(c => selectedChannels.includes(c.channel_name))
+                      .reduce((sum, c) => sum + c.message_count, 0);
 
                     return (
                       <tr key={index} className={rowClass}>
@@ -956,93 +1017,94 @@ function App() {
                             className="cursor-pointer"
                             onClick={() => toggleChannelExpansion(user.user_id)}
                           >
-                            <ul className="list-disc pl-5">
-                              {displayChannels.map((channel, index) => {
-                                const dailyChannelChange =
-                                  dailyMessageData &&
-                                  dailyMessageData.channelChanges
-                                    ? dailyMessageData.channelChanges.find(
-                                        (c) => c.channel_id === channel.channel_id
-                                      )?.change
-                                    : null;
+                            {userChannels.length > 0 ? (
+                              <ul className="list-disc pl-5">
+                                {displayChannels.map((channel, index) => {
+                                  const dailyChannelChange =
+                                    dailyMessageData &&
+                                    dailyMessageData.channelChanges
+                                      ? dailyMessageData.channelChanges.find(
+                                          (c) => c.channel_id === channel.channel_id
+                                        )?.change
+                                      : null;
 
-                                const weeklyChannelChange =
-                                  weeklyMessageData &&
-                                  weeklyMessageData.channelChanges
-                                    ? weeklyMessageData.channelChanges.find(
-                                        (c) => c.channel_id === channel.channel_id
-                                      )?.change
-                                    : null;
+                                  const weeklyChannelChange =
+                                    weeklyMessageData &&
+                                    weeklyMessageData.channelChanges
+                                      ? weeklyMessageData.channelChanges.find(
+                                          (c) => c.channel_id === channel.channel_id
+                                        )?.change || 0
+                                      : null;
 
-                                return (
-                                  <li key={channel.channel_id} className="mb-1">
-                                    <div className="flex flex-wrap items-center">
-                                      <span className="font-medium">
-                                        {channel.channel_name}:
-                                      </span>
-                                      <span className="ml-1">
-                                        {channel.message_count} messages
-                                      </span>
+                                  return (
+                                    <li key={channel.channel_id} className="mb-1">
+                                      <div className="flex flex-wrap items-center">
+                                        <span className="font-medium">
+                                          {channel.channel_name}:
+                                        </span>
+                                        <span className="ml-1">
+                                          {channel.message_count} messages
+                                        </span>
 
-                                      {dailyChannelChange !== null &&
-                                        dailyChannelChange !== 0 && (
+                                        {dailyChannelChange !== null &&
+                                          dailyChannelChange !== 0 && (
+                                            <span
+                                              className={`ml-2 text-green-600 font-medium`}
+                                            >
+                                              ({dailyChannelChange > 0 ? "+" : ""}
+                                              {dailyChannelChange})
+                                            </span>
+                                          )}
+
+                                        {weeklyChannelChange !== null && (
                                           <span
-                                            className={`ml-2 
-     
-                                                 text-green-600
-        
-                                             font-medium`}
-                                          >
-                                            ({dailyChannelChange > 0 ? "+" : ""}
-                                            {dailyChannelChange})
-                                          </span>
-                                        )}
-
-                                      {weeklyChannelChange !== null &&
-                                      (
-                                          <span
-                                            className={`ml-2 pr-2
-                                        
-                                                 text-blue-600
-                  
-                                             font-medium`}
+                                            className={`ml-2 pr-2 ${
+                                              weeklyChannelChange > 0 
+                                                ? "text-blue-600" 
+                                                : weeklyChannelChange < 0 
+                                                  ? "text-red-600"
+                                                  : "text-gray-500"
+                                            } font-medium`}
                                           >
                                             [{""}
                                             {weeklyChannelChange > 0 ? "+" : ""}
                                             {weeklyChannelChange}]
                                           </span>
                                         )}
-                                      
-                                      [{breakdownData.channelBreakdown.map((num, ind) => {
-                                        if (ind == 7) return null;
+                                        
+                                        [{breakdownData.channelBreakdown.map((num, ind) => {
+                                          if (ind == 7) return null;
 
-                                        const realindex = breakdownData?.channelBreakdown[7]?.indexOf(channel.channel_id);
-                                        return (
+                                          const realindex = breakdownData?.channelBreakdown[7]?.indexOf(channel.channel_id);
+                                          if (realindex !== undefined && realindex !== -1 && num[realindex] !== undefined) {
+                                            return (
+                                              <span className={(num[realindex] > 0 ? "text-green-600" : "text-red-600") + " pr-1  "} key={ind}>
+                                                {num[realindex]}  
+                                                {(ind != 6 ? ", " : "")}
+                                              </span>
+                                            );
+                                          }
+                                          return null;
+                                        })}]
+                                      </div>
+                                    </li>
+                                  );
+                                })}
 
-                                          <span className={(num[realindex] > 0 ? "text-green-600" : "text-red-600") + " pr-1  "} key={ind}>
-                                            {num[realindex]}  
-                                            {(ind != 6 ? ", " : "")}
-                                            
-                                          </span>
-                                        );
-                                      })}]
-                                    </div>
+                                {!isExpanded && displayChannels.length > 5 && (
+                                  <li className="text-pink-500 font-medium mt-1 hover:text-pink-700">
+                                    Click to show all {displayChannels.length} channels
                                   </li>
-                                );
-                              })}
-
-                              {!isExpanded && displayChannels.length > 5 && (
-                                <li className="text-pink-500 font-medium mt-1 hover:text-pink-700">
-                                  Click to show all {displayChannels.length}{" "}
-                                  channels
-                                </li>
-                              )}
-                              {isExpanded && displayChannels.length > 5 && (
-                                <li className="text-pink-500 font-medium mt-1 hover:text-pink-700">
-                                  Click to collapse
-                                </li>
-                              )}
-                            </ul>
+                                )}
+                                {isExpanded && displayChannels.length > 5 && (
+                                  <li className="text-pink-500 font-medium mt-1 hover:text-pink-700">
+                                    Click to collapse
+                                  </li>
+                                )}
+                              </ul>
+                            ) : (
+                              <span className="text-gray-500 italic">No activity in selected channels</span>
+                            )}
                           </div>
                         </td>
                       </tr>
